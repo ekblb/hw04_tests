@@ -1,9 +1,7 @@
-from django.contrib.auth import get_user_model
+from http import HTTPStatus
 from django.test import TestCase, Client
 
-from ..models import Group, Post
-
-User = get_user_model()
+from ..models import Group, Post, User
 
 
 class PostURLTest(TestCase):
@@ -13,75 +11,92 @@ class PostURLTest(TestCase):
         cls.user = User.objects.create_user(
             username='test_url_user',
         )
+        cls.user_other = User.objects.create_user(
+            username='other_user',
+        )
         cls.group = Group.objects.create(
             title='test_url_group',
             slug='test_url_slug',
             description='Test description of test_url_group',
-            pk=1,
         )
         cls.post = Post.objects.create(
             author=cls.user,
             text='Text_url',
-            pk=1,
         )
+        cls.post_other = Post.objects.create(
+            author=cls.user_other,
+            pk=2,
+        )
+
+        cls.page_post = f'/posts/{cls.post.pk}/'
+        cls.post_other = f'/posts/{cls.post_other.pk}/'
+        cls.redirect_page = '/auth/login/?next='
+        cls.public_pages_template = {
+            '/': 'posts/index.html',
+            f'/group/{cls.group.slug}/': 'posts/group_list.html',
+            f'/profile/{cls.post.author.username}/': 'posts/profile.html',
+            cls.page_post: 'posts/post_detail.html',
+        }
+
+        cls.private_pages_template = {
+            f'{cls.page_post}edit/': 'posts/create_post.html',
+            '/create/': 'posts/create_post.html',
+        }
+        cls.pages_template = {}
 
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 
-    def test_urls_exists_at_desired_location(self):
-        """Доступность URL-адресов для неавторизованных пользователей."""
-        ok_status_code: int = 200
-        error_404_status_code: int = 404
-        url_status_code_names = {
-            '/': ok_status_code,
-            f'/group/{self.group.slug}/': ok_status_code,
-            f'/profile/{self.post.author.username}/': ok_status_code,
-            f'/posts/{self.post.pk}/': ok_status_code,
-            '/unexisting_page/': error_404_status_code,
-        }
-        for url, status_code in url_status_code_names.items():
-            with self.subTest(url=url):
-                responce = self.guest_client.get(url)
-                self.assertEqual(responce.status_code, status_code)
-
     def test_urls_exists_at_desired_location_authorized(self):
-        """Доступность URL-адресов для авторизованных пользователей."""
-        ok_status_code: int = 200
-        url_status_code_names = {
-            f'/posts/{self.post.pk}/edit/': ok_status_code,
-            '/create/': ok_status_code,
-        }
-        for url, status_code in url_status_code_names.items():
+        """Доступность всех URL-адресов для авторизованных пользователей."""
+        self.pages_template.update(
+            self.public_pages_template
+        )
+        self.pages_template.update(
+            self.private_pages_template
+        )
+        for url, template in self.pages_template.items():
             with self.subTest(url=url):
                 responce = self.authorized_client.get(url)
-                self.assertEqual(responce.status_code, status_code)
+                self.assertEqual(responce.status_code, HTTPStatus.OK)
+
+    def test_urls_exists_at_desired_location(self):
+        """Доступность public URL-адресов для неавторизованны
+        пользователей."""
+        for url, template in self.public_pages_template.items():
+            with self.subTest(url=url):
+                responce = self.guest_client.get(url)
+                self.assertEqual(responce.status_code, HTTPStatus.OK)
 
     def test_urls_redirect_anonymous(self):
         """Редиректы для неавторизованных пользователей."""
-        url1_url2_names = {
-            '/create/': '/auth/login/?next=/create/',
-            f'/posts/{self.post.pk}/edit/':
-            f'/auth/login/?next=/posts/{self.post.pk}/edit/',
-        }
-        for url1, url2 in url1_url2_names.items():
-            with self.subTest(url=url1):
-                responce = self.guest_client.get(url1, follow=True)
-                self.assertRedirects(responce, url2)
+        for url, template in self.private_pages_template.items():
+            with self.subTest(url=url):
+                responce = self.guest_client.get(url, follow=True)
+                self.assertRedirects(responce, self.redirect_page + url)
+
+    def test_urls_redirect_anonymous(self):
+        """Редирект для авторизованного пользователя при редактировании
+         чужого поста."""
+        responce = self.authorized_client.get(f'{self.post}edit/')
+        self.assertEqual(responce.status_code, HTTPStatus.NOT_FOUND)
 
     def test_urls_uses_correct_templates(self):
         """URL-адрес использует соответствующий шаблон."""
-        url_template_names = {
-            '/': 'posts/index.html',
-            f'/group/{self.group.slug}/': 'posts/group_list.html',
-            f'/profile/{self.post.author.username}/': 'posts/profile.html',
-            '/create/': 'posts/create_post.html',
-            f'/posts/{self.post.pk}/': 'posts/post_detail.html',
-            f'/posts/{self.post.pk}/edit/': 'posts/create_post.html',
-        }
-
-        for url, template in url_template_names.items():
+        self.pages_template.update(
+            self.public_pages_template
+        )
+        self.pages_template.update(
+            self.private_pages_template
+        )
+        for url, template in self.pages_template.items():
             with self.subTest(url=url):
                 responce = self.authorized_client.get(url)
                 self.assertTemplateUsed(responce, template)
+
+    def test_unexisting_page(self):
+        """Ошибка 404 для несуществующей страницы."""
+        responce = self.guest_client.get('/unexisting_page/')
+        self.assertEqual(responce.status_code, HTTPStatus.NOT_FOUND)

@@ -1,9 +1,6 @@
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from ..models import Group, Post
-
-User = get_user_model()
+from ..models import Group, Post, User
 
 
 class PostModelTest(TestCase):
@@ -20,7 +17,7 @@ class PostModelTest(TestCase):
         )
         cls.post = Post.objects.create(
             author=cls.user,
-            text='Text_mod',
+            text='Test_text_models',
             group=cls.group,
         )
 
@@ -28,7 +25,10 @@ class PostModelTest(TestCase):
         """Корректная работа __str__ у моделей."""
         post = PostModelTest.post
         group = PostModelTest.group
-        str_post = post.__str__()
-        str_group = group.__str__()
-        self.assertEqual(str_post, self.post.text)
-        self.assertEqual(str_group, self.post.group.title)
+        str_post_group_models = {
+            str(post): self.post.text[:15],
+            str(group): self.post.group.title,
+        }
+        for model, result in str_post_group_models.items():
+            with self.subTest(model=model):
+                self.assertEqual(model, result)

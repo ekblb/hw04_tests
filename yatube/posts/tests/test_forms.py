@@ -1,10 +1,7 @@
-from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
 from django.urls import reverse
 
-from ..models import Group, Post
-
-User = get_user_model()
+from ..models import Group, Post, User
 
 
 class PostCreateFormTests(TestCase):
@@ -18,13 +15,10 @@ class PostCreateFormTests(TestCase):
             title='test_form_group',
             slug='test_form_slug',
             description='Test description of test_form_group',
-            pk=1,
         )
         cls.post = Post.objects.create(
             author=cls.user,
             text='Text_form',
-            group=cls.group,
-            pk=1,
         )
 
     def setUp(self):
@@ -34,10 +28,10 @@ class PostCreateFormTests(TestCase):
 
     def test_post_create(self):
         """Проверка формы создания поста."""
-        post_count = Post.objects.count()
+        Post.objects.all().delete()
         form_data = {
-            'text': self.post.text,
-            'group': self.group.pk,
+            'text': 'Text_test_form_create',
+            'group': self.group.id,
         }
         response = self.authorized_client.post(
             reverse('posts:post_create'),
@@ -47,20 +41,18 @@ class PostCreateFormTests(TestCase):
         self.assertRedirects(response, reverse(
             'posts:profile', kwargs={'username': self.user.username}
         ))
-        self.assertEqual(Post.objects.count(), post_count + 1)
+        self.assertEqual(Post.objects.count(), 1)
+        post = Post.objects.first()
         self.assertTrue(
-            Post.objects.filter(
-                text=self.post.text,
-                group=self.post.group,
-            ).exists()
+            post.text == form_data['text'],
+            post.group == form_data['group'],
         )
 
     def test_post_edit(self):
         """Проверка формы редактирования поста."""
         self.post_count = Post.objects.count()
-        self.text_edit = self.post.text + 'edit'
         form_edit_data = {
-            'text': self.text_edit,
+            'text': 'Text_test_form_edit',
             'group': self.group.pk,
         }
         response = self.authorized_client.post(
@@ -72,10 +64,8 @@ class PostCreateFormTests(TestCase):
             'posts:post_detail', kwargs={'post_id': self.post.pk}
         ))
         self.assertEqual(Post.objects.count(), self.post_count)
-        self.assertNotEqual(self.test_post_edit, self.post.text)
+        post = Post.objects.get(pk=self.post.pk)
         self.assertTrue(
-            Post.objects.filter(
-                text=self.text_edit,
-                group=self.group.pk,
-            ).exists()
+            post.text == form_edit_data['text'],
+            post.group == form_edit_data['group'],
         )
