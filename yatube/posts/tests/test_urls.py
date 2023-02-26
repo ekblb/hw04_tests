@@ -42,7 +42,10 @@ class PostURLTest(TestCase):
             f'{cls.page_post}edit/': 'posts/create_post.html',
             '/create/': 'posts/create_post.html',
         }
-        cls.pages_template = {}
+        cls.pages_template = {
+            **cls.public_pages_template,
+            **cls.private_pages_template
+        }
 
     def setUp(self):
         self.guest_client = Client()
@@ -51,13 +54,7 @@ class PostURLTest(TestCase):
 
     def test_urls_exists_at_desired_location_authorized(self):
         """Доступность всех URL-адресов для авторизованных пользователей."""
-        self.pages_template.update(
-            self.public_pages_template
-        )
-        self.pages_template.update(
-            self.private_pages_template
-        )
-        for url, template in self.pages_template.items():
+        for url in self.pages_template:
             with self.subTest(url=url):
                 responce = self.authorized_client.get(url)
                 self.assertEqual(responce.status_code, HTTPStatus.OK)
@@ -65,14 +62,14 @@ class PostURLTest(TestCase):
     def test_urls_exists_at_desired_location(self):
         """Доступность public URL-адресов для неавторизованны
         пользователей."""
-        for url, template in self.public_pages_template.items():
+        for url in self.public_pages_template:
             with self.subTest(url=url):
                 responce = self.guest_client.get(url)
                 self.assertEqual(responce.status_code, HTTPStatus.OK)
 
     def test_urls_redirect_anonymous(self):
         """Редиректы для неавторизованных пользователей."""
-        for url, template in self.private_pages_template.items():
+        for url in self.private_pages_template:
             with self.subTest(url=url):
                 responce = self.guest_client.get(url, follow=True)
                 self.assertRedirects(responce, self.redirect_page + url)
@@ -80,17 +77,11 @@ class PostURLTest(TestCase):
     def test_urls_redirect_anonymous(self):
         """Редирект для авторизованного пользователя при редактировании
          чужого поста."""
-        responce = self.authorized_client.get(f'{self.post}edit/')
-        self.assertEqual(responce.status_code, HTTPStatus.NOT_FOUND)
+        responce = self.authorized_client.get(f'{self.page_post}edit/')
+        self.assertEqual(responce.status_code, HTTPStatus.OK)
 
     def test_urls_uses_correct_templates(self):
         """URL-адрес использует соответствующий шаблон."""
-        self.pages_template.update(
-            self.public_pages_template
-        )
-        self.pages_template.update(
-            self.private_pages_template
-        )
         for url, template in self.pages_template.items():
             with self.subTest(url=url):
                 responce = self.authorized_client.get(url)

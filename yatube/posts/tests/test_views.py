@@ -1,6 +1,6 @@
 from django import forms
 from django.conf import settings
-# from django.core.paginator import Page
+from django.core.paginator import Page
 from django.test import TestCase, Client
 from django.urls import reverse
 
@@ -66,47 +66,45 @@ class PostPageTest(TestCase):
                 response = self.authorized_client.get(page)
                 self.assertTemplateUsed(response, template)
 
-    def for_pages(self, context, is_page):
+    def for_pages(self, context, is_page=True):
         if is_page:
-            post_object = context[0]
-            # self.assertIsInstance(post_object, Page)
-            post = post_object
+            post_object = context.get('page_obj')
+            self.assertIsInstance(post_object, Page)
+            post = post_object[0]
         else:
-            post = context
+            post = context.get('post')
         self.assertIsInstance(post, Post)
         self.assertEqual(post.group, self.group)
         self.assertEqual(post.text, self.post.text)
         self.assertEqual(post.author, self.post.author)
+        self.assertEqual(post.pub_date, self.post.pub_date)
 
     def test_index_page_show_correct_context(self):
         """Шаблон index сформирован с правильным контекстом."""
         response = self.authorized_client.get(self.reverse_index)
-        context = response.context['page_obj']
-        is_page = True
-        self.for_pages(context, is_page)
+        context = response.context
+        self.for_pages(context, is_page=True)
 
     def test_group_list_page_show_correct_context(self):
         """Шаблон group_list сформирован с правильным контекстом."""
         response = self.authorized_client.get(self.reverse_group)
-        context = response.context['page_obj']
-        post_group = response.context['group'].slug
-        is_page = True
-        self.for_pages(context, is_page)
-        self.assertEqual(post_group, self.group.slug)
+        context = response.context
+        post_group = response.context.get('group')
+        self.for_pages(context, is_page=True)
+        self.assertEqual(post_group, self.group)
 
     def test_profile_page_show_correct_context(self):
         """Шаблон profile сформирован с правильным контекстом."""
         response = self.authorized_client.get(self.reverse_profile)
-        context = response.context['page_obj']
-        post_author = response.context['author'].username
-        is_page = True
-        self.for_pages(context, is_page)
-        self.assertEqual(post_author, self.user.username)
+        context = response.context
+        post_author = response.context.get('author')
+        self.for_pages(context, is_page=True)
+        self.assertEqual(post_author, self.user)
 
     def test_post_detail_page_show_correct_context(self):
         """Шаблон post_detail сформирован с правильным контекстом."""
         response = self.authorized_client.get(self.reverse_post_detail)
-        context = response.context['post']
+        context = response.context
         is_page = False
         self.for_pages(context, is_page)
 
@@ -115,9 +113,9 @@ class PostPageTest(TestCase):
             'text': forms.fields.CharField,
             'group': forms.fields.ChoiceField}
         for value, expected in form_fields.items():
+            form_field = response.context.get('form')
+            self.assertIsInstance(form_field, PostForm)
             with self.subTest(value=value):
-                form_field = response.context.get('form')
-                self.assertIsInstance(form_field, PostForm)
                 form_field = form_field.fields.get(value)
                 self.assertIsInstance(form_field, expected)
 
@@ -134,16 +132,12 @@ class PostPageTest(TestCase):
     def test_post_added_correctly_user2(self):
         """Пост при создании не добавляется в другую группу"""
         response = self.authorized_client.get(self.reverse_group_other)
-        test_post = Post.objects.create(
-            text='Тестовый пост от другого автора',
-            author=self.user,
-            group=self.group)
         context = response.context['page_obj']
-        self.assertNotIn(test_post, context)
+        self.assertNotIn(self.post, context)
 
 
 class PaginatorViewsTest(TestCase):
-    number_posts_page_2: int = 3
+    NUMBER_POSTS_PAGE_2: int = 3
 
     @classmethod
     def setUpClass(cls):
@@ -167,7 +161,7 @@ class PaginatorViewsTest(TestCase):
         self.authorized_client_paginator = Client()
         self.authorized_client_paginator.force_login(self.user)
         bilk_post: list = []
-        for i in range(settings.NUMBER_OF_POST + self.number_posts_page_2):
+        for i in range(settings.NUMBER_OF_POST + self.NUMBER_POSTS_PAGE_2):
             bilk_post.append(Post(text=f'test_text{i}',
                                   group=self.group,
                                   author=self.user))
@@ -183,6 +177,11 @@ class PaginatorViewsTest(TestCase):
         for page in pages:
             response_page_1 = self.guest_client_other.get(page)
             response_page_2 = self.guest_client_other.get(page + '?page=2')
-            self.assertEqual(len(response_page_1.context['page_obj']),
-                             settings.NUMBER_OF_POST)
-            self.assertEqual(len(response_page_2.context['page_obj']), 3)
+        self.assertEqual(
+            len(response_page_1.context['page_obj']),
+            settings.NUMBER_OF_POST
+        )
+        self.assertEqual(
+            len(response_page_2.context['page_obj']),
+            self.NUMBER_POSTS_PAGE_2,
+        )

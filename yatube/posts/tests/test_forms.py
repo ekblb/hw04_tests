@@ -43,14 +43,12 @@ class PostCreateFormTests(TestCase):
         ))
         self.assertEqual(Post.objects.count(), 1)
         post = Post.objects.first()
-        self.assertTrue(
-            post.text == form_data['text'],
-            post.group == form_data['group'],
-        )
+        self.assertEqual(post.text, form_data['text'])
+        self.assertEqual(post.group.pk, form_data['group'])
 
     def test_post_edit(self):
         """Проверка формы редактирования поста."""
-        self.post_count = Post.objects.count()
+        post_count = Post.objects.count()
         form_edit_data = {
             'text': 'Text_test_form_edit',
             'group': self.group.pk,
@@ -63,9 +61,7 @@ class PostCreateFormTests(TestCase):
         self.assertRedirects(response, reverse(
             'posts:post_detail', kwargs={'post_id': self.post.pk}
         ))
-        self.assertEqual(Post.objects.count(), self.post_count)
+        self.assertEqual(Post.objects.count(), post_count)
         post = Post.objects.get(pk=self.post.pk)
-        self.assertTrue(
-            post.text == form_edit_data['text'],
-            post.group == form_edit_data['group'],
-        )
+        self.assertEqual(post.text, form_edit_data['text'])
+        self.assertEqual(post.group.pk, form_edit_data['group'])

@@ -23,11 +23,9 @@ class PostModelTest(TestCase):
 
     def test_models_have_correct_object_names(self):
         """Корректная работа __str__ у моделей."""
-        post = PostModelTest.post
-        group = PostModelTest.group
         str_post_group_models = {
-            str(post): self.post.text[:15],
-            str(group): self.post.group.title,
+            str(self.post): self.post.text[:15],
+            str(self.group): self.post.group.title,
         }
         for model, result in str_post_group_models.items():
             with self.subTest(model=model):
