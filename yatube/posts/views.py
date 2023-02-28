@@ -58,7 +58,7 @@ def post_edit(request, post_id):
         Post.objects.select_related('group', 'author'), id=post_id
     )
     if post.author != request.user:
-        return render(request, 'posts:post_detail', post_id=post.id)
+        return redirect('posts:post_detail', post_id=post.id)
     form = PostForm(request.POST or None, instance=post)
     if not form.is_valid():
         return render(request, 'posts/create_post.html', {'form': form})

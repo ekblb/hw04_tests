@@ -25,11 +25,11 @@ class PostURLTest(TestCase):
         )
         cls.post_other = Post.objects.create(
             author=cls.user_other,
-            pk=2,
+            text='Text_url_other',
         )
 
-        cls.page_post = f'/posts/{cls.post.pk}/'
-        cls.post_other = f'/posts/{cls.post_other.pk}/'
+        cls.page_post = f'/posts/{cls.post.id}/'
+        cls.post_other = f'/posts/{cls.post_other.id}/'
         cls.redirect_page = '/auth/login/?next='
         cls.public_pages_template = {
             '/': 'posts/index.html',
@@ -74,11 +74,21 @@ class PostURLTest(TestCase):
                 responce = self.guest_client.get(url, follow=True)
                 self.assertRedirects(responce, self.redirect_page + url)
 
-    def test_urls_redirect_anonymous(self):
+    def test_urls_redirect(self):
         """Редирект для авторизованного пользователя при редактировании
          чужого поста."""
-        responce = self.authorized_client.get(f'{self.page_post}edit/')
-        self.assertEqual(responce.status_code, HTTPStatus.OK)
+        form_data = {
+            'text': 'Edit_other_post',
+            'group': self.group.id,
+        }
+        responce = self.authorized_client.post(
+            f'{self.post_other}edit/',
+            data=form_data,
+            follow=True,
+            is_edit=True)
+        self.assertRedirects(
+            responce, f'{self.post_other}'
+        )
 
     def test_urls_uses_correct_templates(self):
         """URL-адрес использует соответствующий шаблон."""

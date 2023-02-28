@@ -83,14 +83,14 @@ class PostPageTest(TestCase):
         """Шаблон index сформирован с правильным контекстом."""
         response = self.authorized_client.get(self.reverse_index)
         context = response.context
-        self.for_pages(context, is_page=True)
+        self.for_pages(context)
 
     def test_group_list_page_show_correct_context(self):
         """Шаблон group_list сформирован с правильным контекстом."""
         response = self.authorized_client.get(self.reverse_group)
         context = response.context
         post_group = response.context.get('group')
-        self.for_pages(context, is_page=True)
+        self.for_pages(context)
         self.assertEqual(post_group, self.group)
 
     def test_profile_page_show_correct_context(self):
@@ -98,25 +98,25 @@ class PostPageTest(TestCase):
         response = self.authorized_client.get(self.reverse_profile)
         context = response.context
         post_author = response.context.get('author')
-        self.for_pages(context, is_page=True)
+        self.for_pages(context)
         self.assertEqual(post_author, self.user)
 
     def test_post_detail_page_show_correct_context(self):
         """Шаблон post_detail сформирован с правильным контекстом."""
         response = self.authorized_client.get(self.reverse_post_detail)
         context = response.context
-        is_page = False
-        self.for_pages(context, is_page)
+        self.for_pages(context, is_page=False)
 
     def for_create_edit_pages(self, response):
         form_fields = {
             'text': forms.fields.CharField,
-            'group': forms.fields.ChoiceField}
+            'group': forms.fields.ChoiceField
+        }
+        form_field = response.context.get('form')
+        self.assertIsInstance(form_field, PostForm)
         for value, expected in form_fields.items():
-            form_field = response.context.get('form')
-            self.assertIsInstance(form_field, PostForm)
             with self.subTest(value=value):
-                form_field = form_field.fields.get(value)
+                form_field = response.context.get('form').fields.get(value)
                 self.assertIsInstance(form_field, expected)
 
     def test_post_create_page_show_correct_context(self):
