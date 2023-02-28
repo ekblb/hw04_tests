@@ -77,18 +77,8 @@ class PostURLTest(TestCase):
     def test_urls_redirect(self):
         """Редирект для авторизованного пользователя при редактировании
          чужого поста."""
-        form_data = {
-            'text': 'Edit_other_post',
-            'group': self.group.id,
-        }
-        responce = self.authorized_client.post(
-            f'{self.post_other}edit/',
-            data=form_data,
-            follow=True,
-            is_edit=True)
-        self.assertRedirects(
-            responce, f'{self.post_other}'
-        )
+        responce = self.authorized_client.get(f'{self.post_other}edit/')
+        self.assertRedirects(responce, f'{self.post_other}')
 
     def test_urls_uses_correct_templates(self):
         """URL-адрес использует соответствующий шаблон."""
